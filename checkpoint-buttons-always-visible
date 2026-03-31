@@ -1,0 +1,3 @@
+checkpoint-buttons-always-visible — 2026-03-28
+Библиотека данных: панель действий с рамкой/фоном, кнопки без hover-only стиля; иконка удаления без opacity-40; «Начать анализ» отключается только на строке с идущим анализом (не на всех файлах).
+Git: git tag -a checkpoint-buttons-always-visible -m "Library file actions always visible"

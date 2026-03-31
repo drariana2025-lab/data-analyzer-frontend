@@ -1,0 +1,3 @@
+checkpoint-ui-order — 2026-03-28
+Sidebar and home: Дашборд → Конструктор графиков → Таблицы данных → Личный кабинет; в профиле убран подпись «Выбрать файл с ПК».
+Git (после git init / при наличии репозитория): git tag -a checkpoint-ui-order -m "UI order: dashboard, charts builder, tables, profile"

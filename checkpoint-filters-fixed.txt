@@ -1,0 +1,8 @@
+Checkpoint: checkpoint-filters-fixed
+Date: 2026-03-27
+Status: Filter logic overhauled.
+- Implemented dependent (chained) filters: dropdowns now show only valid sub-options.
+- Improved empty state handling: no more "No data" full-page screens on over-filtering.
+- Added prominent "Reset All Filters" button.
+- Added auto-reset of filters when the dataset changes (new upload/selection).
+- All labels and messages localized to Russian.

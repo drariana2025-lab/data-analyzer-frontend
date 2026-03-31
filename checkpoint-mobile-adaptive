@@ -1,0 +1,3 @@
+checkpoint-mobile-adaptive — 2026-03-28
+Адаптив под телефоны: overflow-x на html/body/#root; шапка и main; личный кабинет (карточки файлов flex-col, кнопки в строку с flex-1); FilterBar/Charts/Tables/MainDashboard; FAB QR; SqlConsole.
+Git: git tag -a checkpoint-mobile-adaptive -m "Mobile adaptive layout"

@@ -1,0 +1,3 @@
+checkpoint-full-fixes — 2026-03-28
+Анализ только по кнопке «Начать анализ»: после загрузки файла в контекст не попадают данные и метаданные; «Анализ готов» при analysisMetadata + activeFileName; applyAnalyzedDataset после бэкенда; спиннер по analyzingFileId.
+Git: git tag -a checkpoint-full-fixes -m "Analysis flow: button-gated backend analysis"

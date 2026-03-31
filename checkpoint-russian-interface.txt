@@ -1,0 +1,6 @@
+Checkpoint: checkpoint-russian-interface
+Date: 2026-03-27
+Status: Rebranding, Localization, and Navigation cleanup completed.
+- Renamed site: «Ваш анализатор данных»
+- Navigation cleaned: Removed Settings, Config, Help.
+- Translation: All UI labels and buttons are in Russian.

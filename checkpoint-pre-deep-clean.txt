@@ -1,0 +1,7 @@
+Checkpoint: checkpoint-pre-deep-clean
+Date: 2026-03-27
+Status: Rebranding and Filter fixes applied. Prepared for deep clean.
+- All Russian localizations are in place.
+- Chained filters implemented.
+- Rebranding confirmed.
+- Preparing to fix null bytes in backend.
