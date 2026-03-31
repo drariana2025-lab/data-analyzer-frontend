@@ -6,11 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { Upload, Download, Trash2, FileSpreadsheet, Loader2, User, LogOut, FileText, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Upload, Trash2, FileSpreadsheet, Loader2, User, LogOut, FileText, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import { CONFIG, getApiUrl } from '../config';
 
 interface UserFile {
   id: string;
@@ -31,25 +29,24 @@ export default function ProfilePage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
 
+  // Загрузка файлов из Supabase
   const fetchFiles = useCallback(async () => {
-  setLoadingFiles(true);
-  
-  // Демо-файл для теста
-  const demoFiles = [{
-    id: 'demo1',
-    file_name: 'sample_data.csv',
-    file_path: 'demo/sample_data.csv',
-    file_size: 1024,
-    file_type: 'csv',
-    uploaded_at: new Date().toISOString()
-  }];
-  
-  setFiles(demoFiles);
-  setLoadingFiles(false);
-}, []);
+    if (!user) {
+      setLoadingFiles(false);
+      return;
+    }
+    setLoadingFiles(true);
+    const { data, error } = await supabase
+      .from('user_files')
+      .select('*')
+      .order('uploaded_at', { ascending: false });
+    if (!error && data) setFiles(data as UserFile[]);
+    setLoadingFiles(false);
+  }, [user]);
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
+  // Парсинг файлов
   const parseFile = async (file: File): Promise<Record<string, any>[]> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -57,11 +54,8 @@ export default function ProfilePage() {
       const text = await file.text();
       const lines = text.trim().split('\n');
       if (lines.length < 1) return [];
-      
-      // Handle both comma and semicolon
       const firstLine = lines[0];
       const sep = firstLine.includes(';') ? ';' : ',';
-      
       const headers = firstLine.split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
       return lines.slice(1).map(line => {
         const vals = line.split(sep);
@@ -91,6 +85,7 @@ export default function ProfilePage() {
     throw new Error('Формат не поддерживается. Используйте CSV, Excel или JSON');
   };
 
+  // Загрузка файла
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -136,6 +131,7 @@ export default function ProfilePage() {
     }
   };
 
+  // Удаление файла
   const handleDeleteFile = async (fileRecord: UserFile) => {
     try {
       await supabase.storage.from('uploads').remove([fileRecord.file_path]);
@@ -148,6 +144,7 @@ export default function ProfilePage() {
     }
   };
 
+  // Анализ файла (без бэкенда)
   const runAnalysis = async (fileRecord: UserFile) => {
     setAnalyzing(true);
     setAnalyzingFileId(fileRecord.id);
@@ -158,43 +155,24 @@ export default function ProfilePage() {
       if (error || !data) throw new Error('Файл не найден в хранилище');
 
       const file = new File([data], fileRecord.file_name);
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // 1. Check if backend is reachable
-      try {
-        const ping = await fetch(CONFIG.API_URL, { signal: AbortSignal.timeout(2000) }).catch(() => null);
-        if (!ping) throw new Error(`Бэкенд недоступен по адресу ${CONFIG.API_URL}. Пожалуйста, запустите backend/main.py`);
-      } catch (e: any) {
-        if (e.name === 'TimeoutError') { /* ignore timeout on root ping if server is slow but alive */ }
-        else throw e;
-      }
-
-      // 2. Upload to Backend
-      const uploadUrl = `${getApiUrl(CONFIG.ENDPOINTS.UPLOAD)}?user_id=${user?.id || '1'}`;
-      const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData }).catch(err => {
-        throw new Error(`Ошибка подключения к серверу (${CONFIG.API_URL}). Убедитесь, что бэкенд запущен.`);
-      });
-      
-      if (!uploadRes.ok) {
-        const errJson = await uploadRes.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Сервер анализа вернул ошибку при загрузке');
-      }
-      const uploadData = await uploadRes.json();
-      
-      // 3. Trigger Analysis
-      const analyzeUrl = `${getApiUrl(CONFIG.ENDPOINTS.ANALYZE)}?file_path=${uploadData.path}`;
-      const analysisRes = await fetch(analyzeUrl, { method: 'POST' }).catch(err => {
-        throw new Error('Не удалось связаться с сервером для анализа. Убедитесь, что бэкенд запущен.');
-      });
-      
-      const analysisJson = await analysisRes.json().catch(() => ({}));
-      if (!analysisRes.ok) throw new Error(analysisJson.detail || 'Ошибка сервера при анализе данных. Проверьте содержимое файла.');
-
       const rows = await parseFile(file);
-      applyAnalyzedDataset(rows, fileRecord.file_name, analysisJson.analysis_results);
-
+      
+      const metadata = {
+        columns_info: Object.keys(rows[0] || {}).reduce((acc, col) => {
+          const sample = rows[0][col];
+          const isNumeric = typeof sample === 'number' && !isNaN(sample);
+          acc[col] = isNumeric ? 'numeric' : 'categorical';
+          return acc;
+        }, {} as Record<string, string>),
+        statistics: {},
+        chart_configs: [],
+        row_count: rows.length,
+        preview: rows.slice(0, 10)
+      };
+      
+      applyAnalyzedDataset(rows, fileRecord.file_name, metadata as any);
       toast.success('Анализ завершен! Платформа адаптирована под ваши данные.');
+      
     } catch (err: any) {
       console.error('Analysis error:', err);
       toast.error(err.message || 'Сбой анализа');
@@ -313,40 +291,31 @@ export default function ProfilePage() {
               ) : (
                 <div className="grid gap-3 sm:gap-4 min-w-0">
                   {files.map(f => {
-                    const fileIsReady =
-                      Boolean(analysisMetadata && activeFileName === f.file_name);
+                    const fileIsReady = Boolean(analysisMetadata && activeFileName === f.file_name);
                     const isAnalyzingThis = analyzing && analyzingFileId === f.id;
                     return (
-                    <div 
-                      key={f.id} 
-                      className={`group relative flex flex-col gap-4 p-4 sm:p-5 rounded-[24px] border-2 transition-all duration-300 min-w-0 sm:flex-row sm:items-center ${fileIsReady ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-transparent bg-muted/20 hover:bg-muted/40'}`}
-                    >
-                      <div className="flex items-start gap-3 min-w-0 sm:flex-1">
-                        <div className={`p-3 rounded-2xl transition-colors shrink-0 ${fileIsReady ? 'bg-primary text-white shadow-lg' : 'bg-card text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <FileSpreadsheet className="h-6 w-6" />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                             <h3 className="font-black text-xs sm:text-sm break-words uppercase tracking-tight">{f.file_name}</h3>
-                             {fileIsReady && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" aria-hidden />}
+                      <div key={f.id} className="group relative flex flex-col gap-4 p-4 sm:p-5 rounded-[24px] border-2 transition-all duration-300 min-w-0 sm:flex-row sm:items-center border-transparent bg-muted/20 hover:bg-muted/40">
+                        <div className="flex items-start gap-3 min-w-0 sm:flex-1">
+                          <div className="p-3 rounded-2xl transition-colors shrink-0 bg-card text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
+                            <FileSpreadsheet className="h-6 w-6" />
                           </div>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-60 break-words">
-                            {new Date(f.uploaded_at).toLocaleDateString('ru-RU')} · {f.file_size ? `${(f.file_size / 1024).toFixed(1)} KB` : 'N/A'} · {f.file_type}
-                          </p>
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="font-black text-xs sm:text-sm break-words uppercase tracking-tight">{f.file_name}</h3>
+                              {fileIsReady && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" aria-hidden />}
+                            </div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-60 break-words">
+                              {new Date(f.uploaded_at).toLocaleDateString('ru-RU')} · {f.file_size ? `${(f.file_size / 1024).toFixed(1)} KB` : 'N/A'} · {f.file_type}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-
-                      <div
-                        className="flex flex-row flex-wrap items-stretch gap-2 w-full min-w-0 rounded-xl border border-border/80 bg-muted/40 p-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:bg-muted/25"
-                        data-testid="file-row-actions"
-                      >
-                         <Button 
-                           type="button"
-                           disabled={isAnalyzingThis}
-                           onClick={() => runAnalysis(f)}
-                           className={`h-11 min-h-[2.75rem] flex-1 min-w-0 opacity-100 sm:flex-initial px-3 sm:px-6 rounded-lg font-black text-xs uppercase tracking-widest transition-all whitespace-normal text-center sm:whitespace-nowrap shadow-sm ${fileIsReady ? 'bg-primary text-primary-foreground shadow-primary/30 sm:scale-[1.02] active:scale-[0.98]' : 'bg-background text-foreground border border-border hover:bg-primary/10 hover:border-primary/40'}`}
-                         >
+                        <div className="flex flex-row flex-wrap items-stretch gap-2 w-full min-w-0 rounded-xl border border-border/80 bg-muted/40 p-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:bg-muted/25">
+                          <Button 
+                            type="button"
+                            disabled={isAnalyzingThis}
+                            onClick={() => runAnalysis(f)}
+                            className="h-11 min-h-[2.75rem] flex-1 min-w-0 opacity-100 sm:flex-initial px-3 sm:px-6 rounded-lg font-black text-xs uppercase tracking-widest transition-all whitespace-normal text-center sm:whitespace-nowrap shadow-sm bg-background text-foreground border border-border hover:bg-primary/10 hover:border-primary/40"
+                          >
                             {isAnalyzingThis ? (
                               <Loader2 className="h-4 w-4 animate-spin mx-auto sm:mx-0" />
                             ) : fileIsReady ? (
@@ -354,20 +323,20 @@ export default function ProfilePage() {
                             ) : (
                               'Начать анализ'
                             )}
-                         </Button>
-                         <Button 
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           onClick={() => handleDeleteFile(f)}
-                           className="h-11 w-11 shrink-0 rounded-lg border-destructive/40 bg-background text-destructive opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
-                           aria-label="Удалить файл"
-                         >
+                          </Button>
+                          <Button 
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleDeleteFile(f)}
+                            className="h-11 w-11 shrink-0 rounded-lg border-destructive/40 bg-background text-destructive opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
+                            aria-label="Удалить файл"
+                          >
                             <Trash2 className="h-5 w-5" />
-                         </Button>
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
+                    );
                   })}
                 </div>
               )}
