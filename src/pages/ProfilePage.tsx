@@ -32,14 +32,21 @@ export default function ProfilePage() {
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
 
   const fetchFiles = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('user_files')
-      .select('*')
-      .order('uploaded_at', { ascending: false });
-    if (!error && data) setFiles(data as UserFile[]);
-    setLoadingFiles(false);
-  }, [user]);
+  setLoadingFiles(true);
+  
+  // Демо-файл для теста
+  const demoFiles = [{
+    id: 'demo1',
+    file_name: 'sample_data.csv',
+    file_path: 'demo/sample_data.csv',
+    file_size: 1024,
+    file_type: 'csv',
+    uploaded_at: new Date().toISOString()
+  }];
+  
+  setFiles(demoFiles);
+  setLoadingFiles(false);
+}, []);
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
