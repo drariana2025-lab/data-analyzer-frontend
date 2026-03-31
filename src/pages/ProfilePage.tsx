@@ -102,7 +102,7 @@ export default function ProfilePage() {
 
       const filePath = `${user.id}/${Date.now()}_${file.name}`;
       const { error: storageError } = await supabase.storage
-        .from('user-data')
+        .from('uploads')
         .upload(filePath, file);
 
       if (storageError) throw new Error('Ошибка хранилища: ' + storageError.message);
@@ -131,7 +131,7 @@ export default function ProfilePage() {
 
   const handleDeleteFile = async (fileRecord: UserFile) => {
     try {
-      await supabase.storage.from('user-data').remove([fileRecord.file_path]);
+      await supabase.storage.from('uploads').remove([fileRecord.file_path]);
       await supabase.from('user_files').delete().eq('id', fileRecord.id);
       if (activeFileName === fileRecord.file_name) clearCustomData();
       await fetchFiles();
@@ -147,7 +147,7 @@ export default function ProfilePage() {
     clearCustomData({ silent: true });
     resetFilters();
     try {
-      const { data, error } = await supabase.storage.from('user-data').download(fileRecord.file_path);
+      const { data, error } = await supabase.storage.from('uploads').download(fileRecord.file_path);
       if (error || !data) throw new Error('Файл не найден в хранилище');
 
       const file = new File([data], fileRecord.file_name);
