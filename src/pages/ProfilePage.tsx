@@ -87,50 +87,67 @@ export default function ProfilePage() {
 
   // Загрузка файла
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  const file = e.target.files?.[0];
+  if (!file || !user) return;
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['csv', 'xlsx', 'xls', 'json'].includes(ext || '')) {
-      toast.error('Ошибка: Недопустимый формат файла');
-      return;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (!['csv', 'xlsx', 'xls', 'json'].includes(ext || '')) {
+    toast.error('Ошибка: Недопустимый формат файла');
+    return;
+  }
+
+  setUploading(true);
+  try {
+    console.log('1. Начинаем загрузку, файл:', file.name);
+    
+    const rows = await parseFile(file);
+    console.log('2. Файл распарсен, строк:', rows.length);
+    
+    const { error: validError } = validateAndParseData(rows);
+    if (validError) throw new Error(validError);
+    console.log('3. Валидация пройдена');
+
+    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+    console.log('4. Путь к файлу:', filePath);
+    
+    console.log('5. Пытаемся загрузить в Storage bucket "uploads"');
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('uploads')
+      .upload(filePath, file);
+      
+    if (storageError) {
+      console.error('Storage error details:', storageError);
+      throw new Error('Ошибка хранилища: ' + storageError.message);
     }
-
-    setUploading(true);
-    try {
-      const rows = await parseFile(file);
-      const { error: validError } = validateAndParseData(rows);
-      if (validError) throw new Error(validError);
-
-      const filePath = `${user.id}/${Date.now()}_${file.name}`;
-      const { error: storageError } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file);
-
-      if (storageError) throw new Error('Ошибка хранилища: ' + storageError.message);
-
-      const { error: dbError } = await supabase.from('user_files').insert({
-        user_id: user.id,
-        file_name: file.name,
-        file_path: filePath,
-        file_size: file.size,
-        file_type: ext || 'csv',
-      });
-
-      if (dbError) throw new Error('Ошибка БД: ' + dbError.message);
-
-      clearCustomData({ silent: true });
-      resetFilters();
-      await fetchFiles();
-      toast.success('Файл загружен. Нажмите «Начать анализ» в библиотеке данных.');
-    } catch (err: any) {
-      toast.error(err.message || 'Ошибка при загрузке');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
+    console.log('6. Файл загружен в Storage, ответ:', storageData);
+    
+    console.log('7. Пытаемся добавить запись в таблицу user_files');
+    const { data: dbData, error: dbError } = await supabase.from('user_files').insert({
+      user_id: user.id,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      file_type: ext || 'csv',
+    });
+    
+    if (dbError) {
+      console.error('DB error details:', dbError);
+      throw new Error('Ошибка БД: ' + dbError.message);
     }
-  };
+    console.log('8. Запись добавлена в БД, ответ:', dbData);
 
+    clearCustomData({ silent: true });
+    resetFilters();
+    await fetchFiles();
+    toast.success('Файл загружен. Нажмите «Начать анализ» в библиотеке данных.');
+  } catch (err: any) {
+    console.error('Общая ошибка загрузки:', err);
+    toast.error(err.message || 'Ошибка при загрузке');
+  } finally {
+    setUploading(false);
+    e.target.value = '';
+  }
+};
   // Удаление файла
   const handleDeleteFile = async (fileRecord: UserFile) => {
     try {
