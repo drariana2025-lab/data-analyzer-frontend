@@ -19,6 +19,16 @@ import NotFound from "./pages/NotFound.tsx";
 import { Loader2 } from "lucide-react";
 import QRCodeGenerator from "./components/QRCodeGenerator";
 
+// Показывать ошибки на экране (для планшета)
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = 'position:fixed; bottom:0; left:0; right:0; background:red; color:white; padding:8px; z-index:10000; font-size:12px;';
+    errorDiv.innerText = event.message || 'Ошибка';
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+  });
+}
 const queryClient = new QueryClient();
 
 // ============================================
