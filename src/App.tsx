@@ -21,13 +21,9 @@ import QRCodeGenerator from "./components/QRCodeGenerator"; // ← ДОБАВЛ�
 
 const queryClient = new QueryClient();
 
-function SpaRedirectHandler() {
-  const redirect = sessionStorage.getItem('redirect');
-  if (redirect) {
-    sessionStorage.removeItem('redirect');
-    return <Navigate to={redirect} replace />;
-  }
-  return null;
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  // ВРЕМЕННО: отключаем проверку авторизации для теста
+  return <>{children}</>;
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
