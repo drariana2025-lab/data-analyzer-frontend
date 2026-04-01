@@ -31,10 +31,9 @@ function SpaRedirectHandler() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // Временно отключаем проверку авторизации, чтобы проверить работу сайта
-  // const { user, loading } = useAuth();
-  // if (loading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  // if (!user) return <Navigate to="/auth" replace />;
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
 
