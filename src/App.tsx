@@ -17,12 +17,30 @@ import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound.tsx";
 import { Loader2 } from "lucide-react";
-import QRCodeGenerator from "./components/QRCodeGenerator"; // ← ДОБАВЛЯЕМ ИМПОРТ
+import QRCodeGenerator from "./components/QRCodeGenerator";
 
 const queryClient = new QueryClient();
 
+// ============================================
+// Функция для обработки редиректа (была потеряна)
+// ============================================
+function SpaRedirectHandler() {
+  const redirect = sessionStorage.getItem('redirect');
+  if (redirect) {
+    sessionStorage.removeItem('redirect');
+    return <Navigate to={redirect} replace />;
+  }
+  return null;
+}
+
+// ============================================
+// Защита маршрутов – ВРЕМЕННО ОТКЛЮЧЕНА ДЛЯ ТЕСТА
+// ============================================
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // ВРЕМЕННО: отключаем проверку авторизации для теста
+  // РАСКОММЕНТИРУЙ, КОГДА АВТОРИЗАЦИЯ ЗАРАБОТАЕТ
+  // const { user, loading } = useAuth();
+  // if (loading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  // if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
 
@@ -79,7 +97,6 @@ const App = () => (
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/*" element={<AppLayout />} />
                 </Routes>
-                {/* ← ДОБАВЛЯЕМ QR-КОД ЗДЕСЬ, ПОСЛЕ ВСЕХ ROUTES */}
                 <QRCodeGenerator />
               </BrowserRouter>
             </FilterProvider>
